@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebDriver Debug</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="popup">
+      <!-- Header -->
+      <header>
+        <h1>
+          <span>🦊</span>
+          WebDriver Debug
+        </h1>
+        <div id="status" class="status disconnected" aria-live="polite">
+          Disconnected
+        </div>
+      </header>
+
+      <!-- Connection Info -->
+      <section class="section" aria-labelledby="connection-title">
+        <h2 id="connection-title">Connection</h2>
+
+        <div class="grid-2">
+          <div class="info-item">
+            <span class="label">WebSocket URL</span>
+            <textarea class="text-box" id="ws-url" readonly>—</textarea>
+          </div>
+          <div class="info-item">
+            <span class="label">Session ID</span>
+            <textarea class="text-box" id="session-id" readonly>—</textarea>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="info-item">
+            <span class="label">Total Tabs</span>
+            <textarea class="text-box" id="total-tabs" readonly>—</textarea>
+          </div>
+          <div class="info-item">
+            <span class="label">Current Tab</span>
+            <textarea class="text-box" id="current-tab" readonly>—</textarea>
+          </div>
+        </div>
+      </section>
+
+      <!-- Stats -->
+      <section class="section" aria-labelledby="stats-title">
+        <h2 id="stats-title">Statistics</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <span id="requests" class="num">0</span>
+            <span class="label">Reqs</span>
+          </div>
+          <div class="stat">
+            <span id="errors" class="num error">0</span>
+            <span class="label">Errs</span>
+          </div>
+          <div class="stat">
+            <span id="handlers" class="num">0</span>
+            <span class="label">Hndlrs</span>
+          </div>
+          <div class="stat">
+            <span id="elements" class="num">0</span>
+            <span class="label">Elems</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Proxy Config -->
+      <section class="section" aria-labelledby="proxy-title">
+        <h2 id="proxy-title">Proxy Configuration</h2>
+
+        <div class="info-item">
+          <span class="label">Per-Tab Proxy</span>
+          <textarea class="text-box" id="tab-proxy" readonly>None</textarea>
+        </div>
+
+        <div class="info-item">
+          <span class="label">Per-Window Proxy</span>
+          <textarea class="text-box" id="window-proxy" readonly>None</textarea>
+        </div>
+      </section>
+
+      <!-- Network Rules -->
+      <section class="section" aria-labelledby="rules-title">
+        <h2 id="rules-title">Network Rules</h2>
+
+        <div class="info-item">
+          <span class="label">Blocked URLs</span>
+          <textarea class="text-box tall" id="block-urls" readonly>
+None</textarea
+          >
+        </div>
+
+        <div class="toggle-row">
+          <span class="label">Intercept Requests</span>
+          <span id="intercept-requests" class="toggle-status off">OFF</span>
+        </div>
+        <div class="toggle-row">
+          <span class="label">Intercept Responses</span>
+          <span id="intercept-responses" class="toggle-status off">OFF</span>
+        </div>
+      </section>
+
+      <!-- Element & Mutation -->
+      <section class="section" aria-labelledby="tracking-title">
+        <h2 id="tracking-title">Element Tracking</h2>
+
+        <div class="info-item">
+          <span class="label">Mutation Observers</span>
+          <textarea class="text-box tall" id="mutation-observers" readonly>
+None</textarea
+          >
+        </div>
+
+        <div class="info-item">
+          <span class="label">Registered Handlers</span>
+          <textarea class="text-box tall" id="registered-handlers" readonly>
+None</textarea
+          >
+        </div>
+      </section>
+
+      <!-- Logs -->
+      <section class="section" aria-labelledby="logs-title">
+        <h2>
+          <span id="logs-title">Logs</span>
+          <button id="clear-logs" class="btn-small">Clear</button>
+        </h2>
+        <textarea class="text-box logs" id="logs" readonly>
+No logs yet</textarea
+        >
+      </section>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>
