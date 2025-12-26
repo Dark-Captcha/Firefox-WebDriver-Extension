@@ -21,7 +21,8 @@ import { createContentLogger } from "./logger.js";
 
 interface ElementSubscription {
   id: string;
-  selector: string;
+  strategy: string;
+  value: string;
   oneShot: boolean;
 }
 
@@ -52,7 +53,8 @@ type ObserverResponse = SubscribeResponse | { success: true } | ErrorResponse;
 
 interface SubscribeMessage {
   type: "ELEMENT_SUBSCRIBE";
-  selector: string;
+  strategy: string;
+  value: string;
   oneShot: boolean;
 }
 
@@ -101,6 +103,156 @@ let observer: MutationObserver | null = null;
 let elementStoreRef: Map<string, Element> | null = null;
 
 // ============================================================================
+// Implementation - Strategy-based Find
+// ============================================================================
+
+function findByStrategy(
+  strategy: string,
+  value: string,
+  parent: Element | Document = document
+): Element | null {
+  log.debug(`findByStrategy: strategy="${strategy}", value="${value}"`);
+
+  let result: Element | null = null;
+  let selector: string | null = null;
+
+  switch (strategy) {
+    case "css":
+      selector = value;
+      result = parent.querySelector(value);
+      break;
+    case "id":
+      selector = `#${CSS.escape(value)}`;
+      result = parent.querySelector(selector);
+      break;
+    case "class":
+      selector = `.${CSS.escape(value)}`;
+      result = parent.querySelector(selector);
+      break;
+    case "tag":
+      selector = value;
+      result = parent.querySelector(value);
+      break;
+    case "name":
+      selector = `[name="${CSS.escape(value)}"]`;
+      result = parent.querySelector(selector);
+      break;
+    case "xpath": {
+      const root = parent === document ? document : parent.ownerDocument;
+      if (!root) {
+        log.debug(`findByStrategy: xpath - no root document`);
+        return null;
+      }
+      const xpathResult = root.evaluate(
+        value,
+        parent,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      );
+      result = xpathResult.singleNodeValue as Element | null;
+      break;
+    }
+    case "text": {
+      const elements = parent.querySelectorAll("*");
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el && el.textContent?.trim() === value) {
+          result = el;
+          break;
+        }
+      }
+      break;
+    }
+    case "partialText": {
+      const elements = parent.querySelectorAll("*");
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el && el.textContent?.includes(value)) {
+          result = el;
+          break;
+        }
+      }
+      break;
+    }
+    case "linkText": {
+      const links = parent.querySelectorAll("a");
+      for (let i = 0; i < links.length; i++) {
+        const el = links[i];
+        if (el && el.textContent?.trim() === value) {
+          result = el;
+          break;
+        }
+      }
+      break;
+    }
+    case "partialLinkText": {
+      const links = parent.querySelectorAll("a");
+      for (let i = 0; i < links.length; i++) {
+        const el = links[i];
+        if (el && el.textContent?.includes(value)) {
+          result = el;
+          break;
+        }
+      }
+      break;
+    }
+    default:
+      log.debug(`findByStrategy: unknown strategy "${strategy}"`);
+      return null;
+  }
+
+  if (selector) {
+    log.debug(`findByStrategy: using selector "${selector}"`);
+  }
+  log.debug(`findByStrategy: result=${result ? result.tagName : "null"}`);
+
+  return result;
+}
+
+function elementMatchesStrategy(
+  element: Element,
+  strategy: string,
+  value: string
+): boolean {
+  switch (strategy) {
+    case "css":
+      try {
+        return element.matches(value);
+      } catch {
+        return false;
+      }
+    case "id":
+      return element.id === value;
+    case "class":
+      return element.classList.contains(value);
+    case "tag":
+      return element.tagName.toLowerCase() === value.toLowerCase();
+    case "name":
+      return element.getAttribute("name") === value;
+    case "xpath":
+      // XPath matching for individual elements is complex, skip for mutation observer
+      return false;
+    case "text":
+      return element.textContent?.trim() === value;
+    case "partialText":
+      return element.textContent?.includes(value) ?? false;
+    case "linkText":
+      return (
+        element.tagName.toLowerCase() === "a" &&
+        element.textContent?.trim() === value
+      );
+    case "partialLinkText":
+      return (
+        element.tagName.toLowerCase() === "a" &&
+        (element.textContent?.includes(value) ?? false)
+      );
+    default:
+      return false;
+  }
+}
+
+// ============================================================================
 // Implementation - Helpers
 // ============================================================================
 
@@ -109,7 +261,7 @@ function checkElementAgainstSubscriptions(element: Element): void {
 
   for (const [subId, sub] of subscriptions) {
     try {
-      if (element.matches(sub.selector)) {
+      if (elementMatchesStrategy(element, sub.strategy, sub.value)) {
         const elementId = generateUUID();
 
         if (elementStoreRef) {
@@ -117,11 +269,12 @@ function checkElementAgainstSubscriptions(element: Element): void {
         }
 
         log.debug(
-          `Element matched: selector="${sub.selector}", id=${elementId}`
+          `Element matched: strategy="${sub.strategy}", value="${sub.value}", id=${elementId}`
         );
 
         sendEvent("element.added", {
-          selector: sub.selector,
+          strategy: sub.strategy,
+          value: sub.value,
           elementId,
           subscriptionId: subId,
           tabId: 0,
@@ -133,7 +286,7 @@ function checkElementAgainstSubscriptions(element: Element): void {
         }
       }
     } catch (e) {
-      log.error(`Invalid selector: ${sub.selector}`, e);
+      log.error(`Invalid strategy: ${sub.strategy}="${sub.value}"`, e);
     }
   }
 
@@ -176,6 +329,19 @@ function checkAddedNodeAndDescendants(node: Node): void {
 // ============================================================================
 
 function handleMutations(mutations: MutationRecord[]): void {
+  if (subscriptions.size === 0) return;
+
+  let addedCount = 0;
+  for (const mutation of mutations) {
+    addedCount += mutation.addedNodes.length;
+  }
+
+  if (addedCount > 0) {
+    log.debug(
+      `handleMutations: ${mutations.length} mutations, ${addedCount} added nodes, ${subscriptions.size} active subscriptions`
+    );
+  }
+
   for (const mutation of mutations) {
     for (let i = 0; i < mutation.addedNodes.length; i++) {
       const node = mutation.addedNodes[i];
@@ -290,24 +456,43 @@ function startAttributeObserver(): void {
 // Implementation - Public Functions
 // ============================================================================
 
-function subscribe(selector: string, oneShot: boolean): ObserverResponse {
-  log.debug(`subscribe: selector="${selector}", oneShot=${oneShot}`);
+function subscribe(
+  strategy: string,
+  value: string,
+  oneShot: boolean
+): ObserverResponse {
+  log.info(
+    `subscribe: strategy="${strategy}", value="${value}", oneShot=${oneShot}`
+  );
 
   startObserver();
 
-  try {
-    document.querySelector(selector);
-  } catch {
+  // Validate strategy
+  const validStrategies = [
+    "css",
+    "xpath",
+    "text",
+    "partialText",
+    "id",
+    "tag",
+    "name",
+    "class",
+    "linkText",
+    "partialLinkText",
+  ];
+  if (!validStrategies.includes(strategy)) {
+    log.error(`Invalid strategy: ${strategy}`);
     return {
       success: false,
-      error: `Invalid CSS selector: ${selector}`,
+      error: `Invalid strategy: ${strategy}`,
       code: "invalid argument",
     };
   }
 
   const subscriptionId = generateUUID();
+  log.debug(`Created subscriptionId: ${subscriptionId}`);
 
-  const existingElement = document.querySelector(selector);
+  const existingElement = findByStrategy(strategy, value);
   if (existingElement) {
     const elementId = generateUUID();
 
@@ -315,7 +500,9 @@ function subscribe(selector: string, oneShot: boolean): ObserverResponse {
       elementStoreRef.set(elementId, existingElement);
     }
 
-    log.debug(`Element already exists: ${elementId}`);
+    log.info(
+      `Element already exists: ${elementId}, tag=${existingElement.tagName}`
+    );
 
     if (oneShot) {
       return { success: true, subscriptionId, elementId };
@@ -323,13 +510,23 @@ function subscribe(selector: string, oneShot: boolean): ObserverResponse {
 
     subscriptions.set(subscriptionId, {
       id: subscriptionId,
-      selector,
+      strategy,
+      value,
       oneShot,
     });
     return { success: true, subscriptionId, elementId };
   }
 
-  subscriptions.set(subscriptionId, { id: subscriptionId, selector, oneShot });
+  log.info(
+    `Element not found, waiting for mutations. Active subscriptions: ${subscriptions.size + 1}`
+  );
+
+  subscriptions.set(subscriptionId, {
+    id: subscriptionId,
+    strategy,
+    value,
+    oneShot,
+  });
   log.debug(`Created subscription: ${subscriptionId}`);
 
   return { success: true, subscriptionId };
@@ -416,7 +613,7 @@ function unwatchAttribute(elementId: string): ObserverResponse {
 // ============================================================================
 
 function handleSubscribe(msg: SubscribeMessage): Promise<ObserverResponse> {
-  return Promise.resolve(subscribe(msg.selector, msg.oneShot));
+  return Promise.resolve(subscribe(msg.strategy, msg.value, msg.oneShot));
 }
 
 function handleUnsubscribe(msg: UnsubscribeMessage): Promise<ObserverResponse> {
@@ -481,7 +678,9 @@ function initObserver(elementStore: Map<string, Element>): void {
 
   registerStateProvider(() => ({
     subscriptionCount: subscriptions.size,
-    subscriptions: Array.from(subscriptions.values()).map((s) => s.selector),
+    subscriptions: Array.from(subscriptions.values()).map(
+      (s) => `${s.strategy}:${s.value}`
+    ),
   }));
 
   window.addEventListener("beforeunload", () => {

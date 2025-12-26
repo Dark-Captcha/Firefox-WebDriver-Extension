@@ -39,21 +39,25 @@ async function handleGetTitle(
   _params: unknown,
   ctx: RequestContext
 ): Promise<GetTitleResult> {
-  log.debug("Getting page title", { tabId: ctx.tabId, frameId: ctx.frameId });
+  log.debug(`getTitle: tab=${ctx.tabId}, frame=${ctx.frameId}`);
+  const start = Date.now();
 
   if (ctx.frameId === MAIN_FRAME_ID) {
     const tab = await browser.tabs.get(ctx.tabId);
     const title = tab.title || "";
-    log.debug(`Got title: ${title}`, { tabId: ctx.tabId });
+    const elapsed = Date.now() - start;
+    log.debug(
+      `getTitle: completed in ${elapsed}ms, title="${title.substring(0, 50)}${title.length > 50 ? "..." : ""}"`
+    );
     return { title };
   }
 
   const result = await handleEvaluate({ script: "return document.title" }, ctx);
   const title = (result.value as string) || "";
-  log.debug(`Got iframe title: ${title}`, {
-    tabId: ctx.tabId,
-    frameId: ctx.frameId,
-  });
+  const elapsed = Date.now() - start;
+  log.debug(
+    `getTitle: completed in ${elapsed}ms (iframe), title="${title.substring(0, 50)}${title.length > 50 ? "..." : ""}"`
+  );
   return { title };
 }
 
@@ -61,12 +65,14 @@ async function handleGetUrl(
   _params: unknown,
   ctx: RequestContext
 ): Promise<GetUrlResult> {
-  log.debug("Getting page URL", { tabId: ctx.tabId, frameId: ctx.frameId });
+  log.debug(`getUrl: tab=${ctx.tabId}, frame=${ctx.frameId}`);
+  const start = Date.now();
 
   if (ctx.frameId === MAIN_FRAME_ID) {
     const tab = await browser.tabs.get(ctx.tabId);
     const url = tab.url || "";
-    log.debug(`Got URL: ${url}`, { tabId: ctx.tabId });
+    const elapsed = Date.now() - start;
+    log.debug(`getUrl: completed in ${elapsed}ms, url=${url}`);
     return { url };
   }
 
@@ -75,10 +81,8 @@ async function handleGetUrl(
     ctx
   );
   const url = (result.value as string) || "";
-  log.debug(`Got iframe URL: ${url}`, {
-    tabId: ctx.tabId,
-    frameId: ctx.frameId,
-  });
+  const elapsed = Date.now() - start;
+  log.debug(`getUrl: completed in ${elapsed}ms (iframe), url=${url}`);
   return { url };
 }
 

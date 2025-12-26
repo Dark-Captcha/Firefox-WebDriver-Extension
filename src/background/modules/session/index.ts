@@ -40,6 +40,7 @@ function handleStatus(
   _params: unknown,
   _ctx: RequestContext
 ): Promise<StatusResult> {
+  log.debug(`status: handlers=${registry.size}`);
   return Promise.resolve({ connected: true, handlers: registry.size });
 }
 
@@ -48,7 +49,7 @@ function handleStealLogs(
   _ctx: RequestContext
 ): Promise<StealLogsResult> {
   const logs = stealLogs();
-  log.debug(`Stole ${logs.length} log entries`);
+  log.debug(`stealLogs: returned ${logs.length} entries`);
   return Promise.resolve({ logs });
 }
 

@@ -263,12 +263,10 @@ class Session {
       // Ignore
     }
 
-    const { getNetworkState } = await import(
-      "../background/modules/network/index.js"
-    );
-    const { getProxyState } = await import(
-      "../background/modules/proxy/index.js"
-    );
+    const { getNetworkState } =
+      await import("../background/modules/network/index.js");
+    const { getProxyState } =
+      await import("../background/modules/proxy/index.js");
 
     const networkState = getNetworkState();
     const proxyState = getProxyState();

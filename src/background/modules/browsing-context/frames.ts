@@ -85,9 +85,10 @@ async function handleSwitchToFrame(
   log.debug(
     `switchToFrame: elementId=${elementId}, tab=${ctx.tabId}, frame=${ctx.frameId}`
   );
+  const start = Date.now();
 
   const childFrames = await getChildFrames(ctx.tabId, ctx.frameId);
-  log.debug(`Found ${childFrames.length} child frames`);
+  log.debug(`switchToFrame: found ${childFrames.length} child frames`);
 
   if (childFrames.length === 0) {
     throw new Error("No child frames found in current context");
@@ -106,7 +107,7 @@ async function handleSwitchToFrame(
   }
 
   const frameIndex = response.frameIndex as number;
-  log.debug(`Element maps to frame index: ${frameIndex}`);
+  log.debug(`switchToFrame: element maps to frame index ${frameIndex}`);
 
   if (frameIndex < 0 || frameIndex >= childFrames.length) {
     throw new Error(
@@ -119,8 +120,9 @@ async function handleSwitchToFrame(
     throw new Error(`No frame at index ${frameIndex}`);
   }
 
-  log.info(
-    `Switched to frame: ${targetFrame.frameId} (url: ${targetFrame.url})`
+  const elapsed = Date.now() - start;
+  log.debug(
+    `switchToFrame: completed in ${elapsed}ms, frameId=${targetFrame.frameId}, url=${targetFrame.url}`
   );
 
   return { frameId: targetFrame.frameId };
@@ -139,6 +141,7 @@ async function handleSwitchToFrameByIndex(
   log.debug(
     `switchToFrameByIndex: index=${index}, tab=${ctx.tabId}, frame=${ctx.frameId}`
   );
+  const start = Date.now();
 
   const childFrames = await getChildFrames(ctx.tabId, ctx.frameId);
 
@@ -153,8 +156,9 @@ async function handleSwitchToFrameByIndex(
     throw new Error(`No frame at index ${index}`);
   }
 
-  log.info(
-    `Switched to frame by index: ${targetFrame.frameId} (url: ${targetFrame.url})`
+  const elapsed = Date.now() - start;
+  log.debug(
+    `switchToFrameByIndex: completed in ${elapsed}ms, frameId=${targetFrame.frameId}, url=${targetFrame.url}`
   );
 
   return { frameId: targetFrame.frameId };
@@ -173,6 +177,7 @@ async function handleSwitchToFrameByUrl(
   log.debug(
     `switchToFrameByUrl: pattern=${urlPattern}, tab=${ctx.tabId}, frame=${ctx.frameId}`
   );
+  const start = Date.now();
 
   const childFrames = await getChildFrames(ctx.tabId, ctx.frameId);
   const regex = patternToRegex(urlPattern);
@@ -182,8 +187,9 @@ async function handleSwitchToFrameByUrl(
     throw new Error(`No frame matching URL pattern: ${urlPattern}`);
   }
 
-  log.info(
-    `Switched to frame by URL: ${targetFrame.frameId} (url: ${targetFrame.url})`
+  const elapsed = Date.now() - start;
+  log.debug(
+    `switchToFrameByUrl: completed in ${elapsed}ms, frameId=${targetFrame.frameId}, url=${targetFrame.url}`
   );
 
   return { frameId: targetFrame.frameId };
@@ -194,9 +200,10 @@ async function handleSwitchToParentFrame(
   ctx: RequestContext
 ): Promise<FrameResult> {
   log.debug(`switchToParentFrame: tab=${ctx.tabId}, frame=${ctx.frameId}`);
+  const start = Date.now();
 
   if (ctx.frameId === 0) {
-    log.debug("Already in main frame");
+    log.debug(`switchToParentFrame: already in main frame`);
     return { frameId: 0 };
   }
 
@@ -207,7 +214,10 @@ async function handleSwitchToParentFrame(
     throw new Error(`Current frame not found: ${ctx.frameId}`);
   }
 
-  log.info(`Switched to parent frame: ${currentFrame.parentFrameId}`);
+  const elapsed = Date.now() - start;
+  log.debug(
+    `switchToParentFrame: completed in ${elapsed}ms, parentFrameId=${currentFrame.parentFrameId}`
+  );
 
   return { frameId: currentFrame.parentFrameId };
 }
@@ -217,10 +227,14 @@ async function handleGetFrameCount(
   ctx: RequestContext
 ): Promise<FrameCountResult> {
   log.debug(`getFrameCount: tab=${ctx.tabId}, frame=${ctx.frameId}`);
+  const start = Date.now();
 
   const childFrames = await getChildFrames(ctx.tabId, ctx.frameId);
 
-  log.debug(`Frame count: ${childFrames.length}`);
+  const elapsed = Date.now() - start;
+  log.debug(
+    `getFrameCount: completed in ${elapsed}ms, count=${childFrames.length}`
+  );
 
   return { count: childFrames.length };
 }
@@ -230,6 +244,7 @@ async function handleGetAllFrames(
   ctx: RequestContext
 ): Promise<AllFramesResult> {
   log.debug(`getAllFrames: tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const frames = await browser.webNavigation.getAllFrames({ tabId: ctx.tabId });
 
@@ -239,7 +254,10 @@ async function handleGetAllFrames(
     url: f.url,
   }));
 
-  log.debug(`Total frames: ${frameInfos.length}`);
+  const elapsed = Date.now() - start;
+  log.debug(
+    `getAllFrames: completed in ${elapsed}ms, count=${frameInfos.length}`
+  );
 
   return { frames: frameInfos };
 }

@@ -120,13 +120,15 @@ async function handleGetCookie(
     return { cookie: null };
   }
 
-  log.debug(`getCookie: name=${name}, url=${url}`);
+  log.debug(`getCookie: name="${name}", url=${url}, tab=${ctx.tabId}`);
 
   try {
     const cookie = await browser.cookies.get({ name, url });
     if (!cookie) {
+      log.debug(`getCookie: not found`);
       return { cookie: null };
     }
+    log.debug(`getCookie: found, value length=${cookie.value.length}`);
     return { cookie: firefoxCookieToOurs(cookie) };
   } catch (error) {
     log.error(`getCookie failed: ${String(error)}`);
@@ -146,7 +148,9 @@ async function handleSetCookie(
     return { success: false };
   }
 
-  log.debug(`setCookie: name=${cookie.name}, url=${url}`);
+  log.debug(
+    `setCookie: name="${cookie.name}", value length=${cookie.value.length}, url=${url}, tab=${ctx.tabId}`
+  );
 
   try {
     const details: browser.cookies._SetDetails = {
@@ -175,6 +179,7 @@ async function handleSetCookie(
     }
 
     await browser.cookies.set(details);
+    log.debug(`setCookie: success`);
     return { success: true };
   } catch (error) {
     log.error(`setCookie failed: ${String(error)}`);
@@ -194,10 +199,11 @@ async function handleDeleteCookie(
     return { success: false };
   }
 
-  log.debug(`deleteCookie: name=${name}, url=${url}`);
+  log.debug(`deleteCookie: name="${name}", url=${url}, tab=${ctx.tabId}`);
 
   try {
     await browser.cookies.remove({ name, url });
+    log.debug(`deleteCookie: success`);
     return { success: true };
   } catch (error) {
     log.error(`deleteCookie failed: ${String(error)}`);
@@ -217,10 +223,11 @@ async function handleGetAllCookies(
     return { cookies: [] };
   }
 
-  log.debug(`getAllCookies: url=${url}`);
+  log.debug(`getAllCookies: url=${url}, tab=${ctx.tabId}`);
 
   try {
     const cookies = await browser.cookies.getAll({ url });
+    log.debug(`getAllCookies: found ${cookies.length} cookies`);
     return { cookies: cookies.map(firefoxCookieToOurs) };
   } catch (error) {
     log.error(`getAllCookies failed: ${String(error)}`);

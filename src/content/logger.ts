@@ -47,10 +47,10 @@ function log(
     level === "error"
       ? console.error
       : level === "warn"
-      ? console.warn
-      : level === "debug"
-      ? console.debug
-      : console.log;
+        ? console.warn
+        : level === "debug"
+          ? console.debug
+          : console.log;
 
   if (data !== undefined) {
     consoleFn(prefix, message, data);

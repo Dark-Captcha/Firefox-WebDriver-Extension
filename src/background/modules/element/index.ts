@@ -24,6 +24,7 @@ import {
   handleWatchAttribute,
   handleUnwatchAttribute,
 } from "./observer.js";
+import { handleCaptureScreenshot } from "./screenshot.js";
 
 // ============================================================================
 // Constants
@@ -49,7 +50,9 @@ registry.register("element.unwatchRemoval", handleUnwatchRemoval);
 registry.register("element.watchAttribute", handleWatchAttribute);
 registry.register("element.unwatchAttribute", handleUnwatchAttribute);
 
-log.info("element module registered (11 handlers)");
+registry.register("element.captureScreenshot", handleCaptureScreenshot);
+
+log.info("element module registered (12 handlers)");
 
 // ============================================================================
 // Exports
@@ -67,4 +70,5 @@ export {
   handleUnwatchRemoval,
   handleWatchAttribute,
   handleUnwatchAttribute,
+  handleCaptureScreenshot,
 };

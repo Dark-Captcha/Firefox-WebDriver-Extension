@@ -59,11 +59,10 @@ async function handleAddPreloadScript(
   const scriptId = generateScriptId();
   const registrationId = `preload-${scriptId}`;
 
-  log.debug("Registering preload script", {
-    scriptId,
-    matches,
-    scriptLength: script.length,
-  });
+  log.debug(
+    `addPreloadScript: scriptId=${scriptId}, scriptLength=${script.length}, matches=${matches.join(",")}`
+  );
+  const start = Date.now();
 
   const wrappedScript = `(function() { ${script} })();`;
 
@@ -80,7 +79,10 @@ async function handleAddPreloadScript(
 
   registeredScripts.set(scriptId, registrationId);
 
-  log.info(`Registered preload script ${scriptId}`, { matches });
+  const elapsed = Date.now() - start;
+  log.debug(
+    `addPreloadScript: completed in ${elapsed}ms, scriptId=${scriptId}`
+  );
 
   return { scriptId };
 }
@@ -100,13 +102,15 @@ async function handleRemovePreloadScript(
     throw new Error(`No such script: ${scriptId}`);
   }
 
-  log.debug("Unregistering preload script", { scriptId });
+  log.debug(`removePreloadScript: scriptId=${scriptId}`);
+  const start = Date.now();
 
   await browser.scripting.unregisterContentScripts({ ids: [registrationId] });
 
   registeredScripts.delete(scriptId);
 
-  log.info(`Unregistered preload script ${scriptId}`);
+  const elapsed = Date.now() - start;
+  log.debug(`removePreloadScript: completed in ${elapsed}ms`);
 }
 
 function getPreloadScriptCount(): number {

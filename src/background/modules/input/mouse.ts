@@ -48,11 +48,9 @@ async function handleMouseClick(
     throw new Error("Either elementId or coordinates (x, y) must be provided");
   }
 
-  log.debug(
-    `mouseClick: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseClick: ${target}, button=${button}, tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -66,7 +64,8 @@ async function handleMouseClick(
     throw error;
   }
 
-  log.debug("mouseClick: success");
+  const elapsed = Date.now() - start;
+  log.debug(`mouseClick: completed in ${elapsed}ms`);
 }
 
 async function handleMouseMove(
@@ -79,7 +78,9 @@ async function handleMouseMove(
     throw new Error("Either elementId or coordinates (x, y) must be provided");
   }
 
-  log.debug(`mouseMove: elementId=${elementId ?? "none"}, x=${x}, y=${y}`);
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseMove: ${target}, tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -93,7 +94,8 @@ async function handleMouseMove(
     throw error;
   }
 
-  log.debug("mouseMove: success");
+  const elapsed = Date.now() - start;
+  log.debug(`mouseMove: completed in ${elapsed}ms`);
 }
 
 async function handleMouseDown(
@@ -106,11 +108,9 @@ async function handleMouseDown(
     throw new Error("Either elementId or coordinates (x, y) must be provided");
   }
 
-  log.debug(
-    `mouseDown: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseDown: ${target}, button=${button}, tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -124,7 +124,8 @@ async function handleMouseDown(
     throw error;
   }
 
-  log.debug("mouseDown: success");
+  const elapsed = Date.now() - start;
+  log.debug(`mouseDown: completed in ${elapsed}ms`);
 }
 
 async function handleMouseUp(
@@ -137,11 +138,9 @@ async function handleMouseUp(
     throw new Error("Either elementId or coordinates (x, y) must be provided");
   }
 
-  log.debug(
-    `mouseUp: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseUp: ${target}, button=${button}, tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -155,7 +154,8 @@ async function handleMouseUp(
     throw error;
   }
 
-  log.debug("mouseUp: success");
+  const elapsed = Date.now() - start;
+  log.debug(`mouseUp: completed in ${elapsed}ms`);
 }
 
 // ============================================================================

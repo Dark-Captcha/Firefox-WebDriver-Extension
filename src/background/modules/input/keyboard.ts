@@ -71,7 +71,18 @@ async function handleTypeKey(
     throw new Error("key is required");
   }
 
-  log.debug(`typeKey: elementId=${elementId}, key="${key}", code="${code}"`);
+  const modifiers = [
+    ctrl && "ctrl",
+    shift && "shift",
+    alt && "alt",
+    meta && "meta",
+  ]
+    .filter(Boolean)
+    .join("+");
+  log.debug(
+    `typeKey: elementId=${elementId}, key="${key}", code="${code}", keyCode=${keyCode}, printable=${printable}, modifiers=${modifiers || "none"}, tab=${ctx.tabId}`
+  );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -96,7 +107,8 @@ async function handleTypeKey(
     throw error;
   }
 
-  log.debug("typeKey: success");
+  const elapsed = Date.now() - start;
+  log.debug(`typeKey: completed in ${elapsed}ms`);
 }
 
 async function handleTypeText(
@@ -113,8 +125,9 @@ async function handleTypeText(
   }
 
   log.debug(
-    `typeText: elementId=${elementId}, text="${text}" (${text.length} chars)`
+    `typeText: elementId=${elementId}, text="${text.substring(0, 20)}${text.length > 20 ? "..." : ""}" (${text.length} chars), tab=${ctx.tabId}`
   );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -128,7 +141,8 @@ async function handleTypeText(
     throw error;
   }
 
-  log.debug("typeText: success");
+  const elapsed = Date.now() - start;
+  log.debug(`typeText: completed in ${elapsed}ms`);
 }
 
 // ============================================================================

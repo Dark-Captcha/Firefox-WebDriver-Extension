@@ -42,7 +42,8 @@ async function handleNewTab(
 ): Promise<NewTabResult> {
   const { url } = (params as NewTabParams) || {};
 
-  log.debug("Creating new tab", { url });
+  log.debug(`newTab: url=${url ?? "about:blank"}`);
+  const start = Date.now();
 
   const createProps: browser.tabs._CreateCreateProperties = {};
   if (url) {
@@ -58,7 +59,8 @@ async function handleNewTab(
   const tabId = createTabId(tab.id);
   const tabUrl = tab.url || "about:blank";
 
-  log.info(`Created new tab ${tabId}`, { url: tabUrl });
+  const elapsed = Date.now() - start;
+  log.debug(`newTab: completed in ${elapsed}ms, tabId=${tabId}, url=${tabUrl}`);
 
   return { tabId, url: tabUrl };
 }
@@ -67,9 +69,13 @@ async function handleCloseTab(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Closing tab", { tabId: ctx.tabId });
+  log.debug(`closeTab: tab=${ctx.tabId}`);
+  const start = Date.now();
+
   await browser.tabs.remove(ctx.tabId);
-  log.info(`Closed tab ${ctx.tabId}`);
+
+  const elapsed = Date.now() - start;
+  log.debug(`closeTab: completed in ${elapsed}ms`);
 }
 
 // ============================================================================

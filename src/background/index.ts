@@ -178,6 +178,24 @@ browser.runtime.onMessage.addListener(
 
       const eventParams = { ...params, tabId, frameId };
       log.debug(`Content event: ${method}`, eventParams);
+
+      // Handle element.added events locally to resolve pending subscriptions
+      if (method === "element.added") {
+        const { elementId, strategy, value } = params as {
+          elementId: string;
+          strategy: string;
+          value: string;
+        };
+        // Import dynamically to avoid circular dependency
+        import("./modules/element/observer.js")
+          .then(({ onElementAdded }) => {
+            onElementAdded(tabId, elementId, strategy, value);
+          })
+          .catch(() => {
+            // Ignore import errors
+          });
+      }
+
       session.sendEvent(method, eventParams);
 
       return false;

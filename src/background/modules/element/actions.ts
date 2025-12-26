@@ -66,7 +66,10 @@ async function handleGetProperty(
     throw new Error("name is required");
   }
 
-  log.debug(`getProperty: elementId=${elementId}, name="${name}"`);
+  log.debug(
+    `getProperty: elementId=${elementId}, name="${name}", tab=${ctx.tabId}`
+  );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -79,6 +82,11 @@ async function handleGetProperty(
     error.name = response?.code || "script error";
     throw error;
   }
+
+  const elapsed = Date.now() - start;
+  log.debug(
+    `getProperty: completed in ${elapsed}ms, value type=${typeof response.value}`
+  );
 
   return { value: response.value };
 }
@@ -96,7 +104,10 @@ async function handleSetProperty(
     throw new Error("name is required");
   }
 
-  log.debug(`setProperty: elementId=${elementId}, name="${name}"`);
+  log.debug(
+    `setProperty: elementId=${elementId}, name="${name}", tab=${ctx.tabId}`
+  );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -110,7 +121,8 @@ async function handleSetProperty(
     throw error;
   }
 
-  log.debug("setProperty: success");
+  const elapsed = Date.now() - start;
+  log.debug(`setProperty: completed in ${elapsed}ms`);
 
   return {};
 }
@@ -129,10 +141,9 @@ async function handleCallMethod(
   }
 
   log.debug(
-    `callMethod: elementId=${elementId}, name="${name}", args=${
-      args?.length ?? 0
-    }`
+    `callMethod: elementId=${elementId}, name="${name}", args=${args?.length ?? 0}, tab=${ctx.tabId}`
   );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
@@ -152,7 +163,10 @@ async function handleCallMethod(
     throw error;
   }
 
-  log.debug(`callMethod result: ${typeof response.value}`);
+  const elapsed = Date.now() - start;
+  log.debug(
+    `callMethod: completed in ${elapsed}ms, result type=${typeof response.value}`
+  );
 
   return { value: response.value };
 }

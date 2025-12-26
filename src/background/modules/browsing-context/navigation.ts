@@ -128,11 +128,14 @@ async function handleNavigate(
     throw new Error("URL is required");
   }
 
-  log.debug(`Navigating to ${url}`, { tabId: ctx.tabId, wait });
+  log.debug(`navigate: url=${url}, tab=${ctx.tabId}, wait=${wait}`);
+  const start = Date.now();
 
   if (wait === "none") {
     await browser.tabs.update(ctx.tabId as number, { url });
-    log.info(`Navigation started (no wait): ${url}`, { tabId: ctx.tabId });
+    log.info(
+      `navigate: started (no wait) in ${Date.now() - start}ms, url=${url}`
+    );
     return { url };
   }
 
@@ -146,7 +149,8 @@ async function handleNavigate(
 
   const finalUrl = await navigationPromise;
 
-  log.info(`Navigated to ${finalUrl}`, { tabId: ctx.tabId });
+  const elapsed = Date.now() - start;
+  log.info(`navigate: completed in ${elapsed}ms, url=${finalUrl}`);
 
   return { url: finalUrl };
 }
@@ -155,27 +159,39 @@ async function handleReload(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Reloading page", { tabId: ctx.tabId });
+  log.debug(`reload: tab=${ctx.tabId}`);
+  const start = Date.now();
+
   await browser.tabs.reload(ctx.tabId);
-  log.info("Page reloaded", { tabId: ctx.tabId });
+
+  const elapsed = Date.now() - start;
+  log.debug(`reload: completed in ${elapsed}ms`);
 }
 
 async function handleGoBack(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Going back", { tabId: ctx.tabId });
+  log.debug(`goBack: tab=${ctx.tabId}`);
+  const start = Date.now();
+
   await browser.tabs.goBack(ctx.tabId);
-  log.info("Navigated back", { tabId: ctx.tabId });
+
+  const elapsed = Date.now() - start;
+  log.debug(`goBack: completed in ${elapsed}ms`);
 }
 
 async function handleGoForward(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Going forward", { tabId: ctx.tabId });
+  log.debug(`goForward: tab=${ctx.tabId}`);
+  const start = Date.now();
+
   await browser.tabs.goForward(ctx.tabId);
-  log.info("Navigated forward", { tabId: ctx.tabId });
+
+  const elapsed = Date.now() - start;
+  log.debug(`goForward: completed in ${elapsed}ms`);
 }
 
 // ============================================================================

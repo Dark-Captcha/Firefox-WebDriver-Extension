@@ -25,16 +25,21 @@ async function handleFocusTab(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Focusing tab", { tabId: ctx.tabId });
+  log.debug(`focusTab: tab=${ctx.tabId}`);
+  const start = Date.now();
+
   await browser.tabs.update(ctx.tabId, { active: true });
-  log.info(`Focused tab ${ctx.tabId}`);
+
+  const elapsed = Date.now() - start;
+  log.debug(`focusTab: completed in ${elapsed}ms`);
 }
 
 async function handleFocusWindow(
   _params: unknown,
   ctx: RequestContext
 ): Promise<void> {
-  log.debug("Focusing window for tab", { tabId: ctx.tabId });
+  log.debug(`focusWindow: tab=${ctx.tabId}`);
+  const start = Date.now();
 
   const tab = await browser.tabs.get(ctx.tabId);
   if (tab.windowId === undefined) {
@@ -42,7 +47,9 @@ async function handleFocusWindow(
   }
 
   await browser.windows.update(tab.windowId, { focused: true });
-  log.info(`Focused window ${tab.windowId} for tab ${ctx.tabId}`);
+
+  const elapsed = Date.now() - start;
+  log.debug(`focusWindow: completed in ${elapsed}ms, windowId=${tab.windowId}`);
 }
 
 // ============================================================================

@@ -16,12 +16,14 @@ import { createLogger } from "../../../core/logger.js";
 // ============================================================================
 
 interface FindParams {
-  selector: string;
+  strategy: string;
+  value: string;
   parentId?: string;
 }
 
 interface FindAllParams {
-  selector: string;
+  strategy: string;
+  value: string;
   parentId?: string;
 }
 
@@ -55,19 +57,23 @@ async function handleFind(
   params: unknown,
   ctx: RequestContext
 ): Promise<FindResult> {
-  const { selector, parentId } = params as FindParams;
+  const { strategy, value, parentId } = params as FindParams;
 
-  if (!selector) {
-    throw new Error("selector is required");
+  if (!strategy) {
+    throw new Error("strategy is required");
+  }
+  if (!value) {
+    throw new Error("value is required");
   }
 
   log.debug(
-    `find: selector="${selector}", tab=${ctx.tabId}, frame=${ctx.frameId}`
+    `find: strategy="${strategy}", value="${value}", parentId=${parentId ?? "none"}, tab=${ctx.tabId}, frame=${ctx.frameId}`
   );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
-    { type: "ELEMENT_FIND", selector, parentId },
+    { type: "ELEMENT_FIND", strategy, value, parentId },
     { frameId: ctx.frameId }
   )) as ContentResponse;
 
@@ -77,7 +83,8 @@ async function handleFind(
     throw error;
   }
 
-  log.debug(`found: elementId=${response.elementId}`);
+  const elapsed = Date.now() - start;
+  log.debug(`find: completed in ${elapsed}ms, elementId=${response.elementId}`);
 
   return { elementId: response.elementId! };
 }
@@ -86,19 +93,23 @@ async function handleFindAll(
   params: unknown,
   ctx: RequestContext
 ): Promise<FindAllResult> {
-  const { selector, parentId } = params as FindAllParams;
+  const { strategy, value, parentId } = params as FindAllParams;
 
-  if (!selector) {
-    throw new Error("selector is required");
+  if (!strategy) {
+    throw new Error("strategy is required");
+  }
+  if (!value) {
+    throw new Error("value is required");
   }
 
   log.debug(
-    `findAll: selector="${selector}", tab=${ctx.tabId}, frame=${ctx.frameId}`
+    `findAll: strategy="${strategy}", value="${value}", parentId=${parentId ?? "none"}, tab=${ctx.tabId}, frame=${ctx.frameId}`
   );
+  const start = Date.now();
 
   const response = (await browser.tabs.sendMessage(
     ctx.tabId,
-    { type: "ELEMENT_FIND_ALL", selector, parentId },
+    { type: "ELEMENT_FIND_ALL", strategy, value, parentId },
     { frameId: ctx.frameId }
   )) as ContentResponse;
 
@@ -108,7 +119,10 @@ async function handleFindAll(
     throw error;
   }
 
-  log.info(`foundAll: count=${response.elementIds?.length ?? 0}`);
+  const elapsed = Date.now() - start;
+  log.debug(
+    `findAll: completed in ${elapsed}ms, count=${response.elementIds?.length ?? 0}`
+  );
 
   return { elementIds: response.elementIds ?? [] };
 }

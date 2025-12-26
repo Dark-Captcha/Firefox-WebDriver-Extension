@@ -28,6 +28,7 @@ import {
   handleGetAllFrames,
 } from "./frames.js";
 import { initBrowsingContextEvents } from "./events.js";
+import { handleCaptureScreenshot } from "./screenshot.js";
 
 // ============================================================================
 // Constants
@@ -69,9 +70,11 @@ registry.register(
 registry.register("browsingContext.getFrameCount", handleGetFrameCount);
 registry.register("browsingContext.getAllFrames", handleGetAllFrames);
 
+registry.register("browsingContext.captureScreenshot", handleCaptureScreenshot);
+
 initBrowsingContextEvents();
 
-log.info("browsingContext module registered (16 handlers + events)");
+log.info("browsingContext module registered (17 handlers + events)");
 
 // ============================================================================
 // Exports
@@ -94,4 +97,5 @@ export {
   handleSwitchToParentFrame,
   handleGetFrameCount,
   handleGetAllFrames,
+  handleCaptureScreenshot,
 };

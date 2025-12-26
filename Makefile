@@ -1,7 +1,7 @@
 # Firefox WebDriver Extension
 # Node.js 20+
 
-.PHONY: help install build dev lint type-check all clean nuke check-deps xpi
+.PHONY: help install build dev lint type-check all clean nuke check-deps xpi format
 
 help:
 	@echo "Extension"
@@ -13,9 +13,10 @@ help:
 	@echo ""
 	@echo "Quality"
 	@echo ""
+	@echo "  make format     - Format code with Prettier"
 	@echo "  make lint       - Run ESLint"
 	@echo "  make type-check - Run TypeScript type checker"
-	@echo "  make all        - Type check + lint + build"
+	@echo "  make all        - Format + type check + lint + build"
 	@echo ""
 	@echo "Clean"
 	@echo ""
@@ -40,6 +41,9 @@ dev: check-deps
 
 # Quality
 
+format: check-deps
+	@npm run format
+
 lint: check-deps
 	@npm run lint
 
@@ -47,7 +51,7 @@ type-check: check-deps
 	@npm run type-check
 
 all: check-deps
-	@npm run all
+	@npm run format && npm run type-check && npm run lint && npm run build
 
 # Clean
 

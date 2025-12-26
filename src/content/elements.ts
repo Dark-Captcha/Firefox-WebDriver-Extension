@@ -17,13 +17,15 @@ import { createContentLogger } from "./logger.js";
 
 interface ElementFindMessage {
   type: "ELEMENT_FIND";
-  selector: string;
+  strategy: string;
+  value: string;
   parentId?: string;
 }
 
 interface ElementFindAllMessage {
   type: "ELEMENT_FIND_ALL";
-  selector: string;
+  strategy: string;
+  value: string;
   parentId?: string;
 }
 
@@ -90,6 +92,24 @@ interface FrameGetIndexMessage {
   type: "FRAME_GET_INDEX";
   elementId: string;
   frameId: number;
+}
+
+interface ElementGetBoundsAndScrollMessage {
+  type: "ELEMENT_GET_BOUNDS_AND_SCROLL";
+  elementId: string;
+}
+
+interface CropImageMessage {
+  type: "CROP_IMAGE";
+  dataUrl: string;
+  bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  format: "png" | "jpeg";
+  quality?: number;
 }
 
 interface SuccessResponse {
@@ -290,23 +310,156 @@ function charToKeyProps(char: string): {
 }
 
 // ============================================================================
+// Implementation - Strategy-based Find Operations
+// ============================================================================
+
+function findByStrategy(
+  strategy: string,
+  value: string,
+  parent: Element | Document = document
+): Element | null {
+  switch (strategy) {
+    case "css":
+      return parent.querySelector(value);
+    case "id":
+      return parent.querySelector(`#${CSS.escape(value)}`);
+    case "class":
+      return parent.querySelector(`.${CSS.escape(value)}`);
+    case "tag":
+      return parent.querySelector(value);
+    case "name":
+      return parent.querySelector(`[name="${CSS.escape(value)}"]`);
+    case "xpath": {
+      const root = parent === document ? document : parent.ownerDocument;
+      if (!root) return null;
+      const result = root.evaluate(
+        value,
+        parent,
+        null,
+        XPathResult.FIRST_ORDERED_NODE_TYPE,
+        null
+      );
+      return result.singleNodeValue as Element | null;
+    }
+    case "text": {
+      const elements = parent.querySelectorAll("*");
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el && el.textContent?.trim() === value) return el;
+      }
+      return null;
+    }
+    case "partialText": {
+      const elements = parent.querySelectorAll("*");
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el && el.textContent?.includes(value)) return el;
+      }
+      return null;
+    }
+    case "linkText": {
+      const links = parent.querySelectorAll("a");
+      for (let i = 0; i < links.length; i++) {
+        const el = links[i];
+        if (el && el.textContent?.trim() === value) return el;
+      }
+      return null;
+    }
+    case "partialLinkText": {
+      const links = parent.querySelectorAll("a");
+      for (let i = 0; i < links.length; i++) {
+        const el = links[i];
+        if (el && el.textContent?.includes(value)) return el;
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
+function findAllByStrategy(
+  strategy: string,
+  value: string,
+  parent: Element | Document = document
+): Element[] {
+  switch (strategy) {
+    case "css":
+      return Array.from(parent.querySelectorAll(value));
+    case "id": {
+      const el = parent.querySelector(`#${CSS.escape(value)}`);
+      return el ? [el] : [];
+    }
+    case "class":
+      return Array.from(parent.querySelectorAll(`.${CSS.escape(value)}`));
+    case "tag":
+      return Array.from(parent.querySelectorAll(value));
+    case "name":
+      return Array.from(
+        parent.querySelectorAll(`[name="${CSS.escape(value)}"]`)
+      );
+    case "xpath": {
+      const root = parent === document ? document : parent.ownerDocument;
+      if (!root) return [];
+      const result = root.evaluate(
+        value,
+        parent,
+        null,
+        XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+        null
+      );
+      const elements: Element[] = [];
+      for (let i = 0; i < result.snapshotLength; i++) {
+        const node = result.snapshotItem(i);
+        if (node instanceof Element) elements.push(node);
+      }
+      return elements;
+    }
+    case "text":
+      return Array.from(parent.querySelectorAll("*")).filter(
+        (el) => el.textContent?.trim() === value
+      );
+    case "partialText":
+      return Array.from(parent.querySelectorAll("*")).filter((el) =>
+        el.textContent?.includes(value)
+      );
+    case "linkText":
+      return Array.from(parent.querySelectorAll("a")).filter(
+        (el) => el.textContent?.trim() === value
+      );
+    case "partialLinkText":
+      return Array.from(parent.querySelectorAll("a")).filter((el) =>
+        el.textContent?.includes(value)
+      );
+    default:
+      return [];
+  }
+}
+
+// ============================================================================
 // Implementation - Find Operations
 // ============================================================================
 
-function findElement(selector: string, parentId?: string): ElementResponse {
-  log.debug(`find: selector="${selector}", parentId=${parentId ?? "none"}`);
+function findElement(
+  strategy: string,
+  value: string,
+  parentId?: string
+): ElementResponse {
+  log.debug(
+    `find: strategy="${strategy}", value="${value}", parentId=${parentId ?? "none"}`
+  );
 
   const root = getSearchRoot(parentId);
   if ("success" in root && !root.success) {
     return root;
   }
 
-  const element = (root as Element | Document).querySelector(selector);
+  const element = findByStrategy(strategy, value, root as Element | Document);
 
   if (!element) {
     return {
       success: false,
-      error: `Element not found: ${selector}`,
+      error: `Element not found: ${strategy}="${value}"`,
       code: "no such element",
     };
   }
@@ -319,24 +472,31 @@ function findElement(selector: string, parentId?: string): ElementResponse {
   return { success: true, elementId };
 }
 
-function findAllElements(selector: string, parentId?: string): ElementResponse {
-  log.debug(`findAll: selector="${selector}", parentId=${parentId ?? "none"}`);
+function findAllElements(
+  strategy: string,
+  value: string,
+  parentId?: string
+): ElementResponse {
+  log.debug(
+    `findAll: strategy="${strategy}", value="${value}", parentId=${parentId ?? "none"}`
+  );
 
   const root = getSearchRoot(parentId);
   if ("success" in root && !root.success) {
     return root;
   }
 
-  const elements = (root as Element | Document).querySelectorAll(selector);
+  const elements = findAllByStrategy(
+    strategy,
+    value,
+    root as Element | Document
+  );
   const elementIds: string[] = [];
 
-  for (let i = 0; i < elements.length; i++) {
-    const element = elements[i];
-    if (element) {
-      const elementId = generateUUID();
-      elementStore.set(elementId, element);
-      elementIds.push(elementId);
-    }
+  for (const element of elements) {
+    const elementId = generateUUID();
+    elementStore.set(elementId, element);
+    elementIds.push(elementId);
   }
 
   log.debug(`foundAll: count=${elementIds.length}`);
@@ -490,6 +650,19 @@ function typeKey(
 
     el.dispatchEvent(new KeyboardEvent("keydown", eventInit));
 
+    // Handle Enter key - submit form
+    if ((key === "Enter" || code === "Enter") && !ctrl && !alt && !meta) {
+      const form = el.closest("form");
+      if (form) {
+        log.debug("typeKey: Enter - submitting form");
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          form.submit();
+        }
+      }
+    }
+
     if (printable && isInputElement(el)) {
       const inputEl = el as HTMLInputElement | HTMLTextAreaElement;
 
@@ -619,11 +792,8 @@ function mouseClick(
   y: number | undefined,
   button: number
 ): ElementResponse {
-  log.debug(
-    `mouseClick: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseClick: ${target}, button=${button}`);
 
   let targetElement: Element;
   let clickX: number;
@@ -693,7 +863,8 @@ function mouseMove(
   x: number | undefined,
   y: number | undefined
 ): ElementResponse {
-  log.debug(`mouseMove: elementId=${elementId ?? "none"}, x=${x}, y=${y}`);
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseMove: ${target}`);
 
   let targetElement: Element;
   let moveX: number;
@@ -756,11 +927,8 @@ function mouseDown(
   y: number | undefined,
   button: number
 ): ElementResponse {
-  log.debug(
-    `mouseDown: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseDown: ${target}, button=${button}`);
 
   let targetElement: Element;
   let downX: number;
@@ -828,11 +996,8 @@ function mouseUp(
   y: number | undefined,
   button: number
 ): ElementResponse {
-  log.debug(
-    `mouseUp: elementId=${
-      elementId ?? "none"
-    }, x=${x}, y=${y}, button=${button}`
-  );
+  const target = elementId ?? `(${x}, ${y})`;
+  log.debug(`mouseUp: ${target}, button=${button}`);
 
   let targetElement: Element;
   let upX: number;
@@ -946,6 +1111,172 @@ function getFrameIndex(
 }
 
 // ============================================================================
+// Implementation - Screenshot Operations
+// ============================================================================
+
+interface BoundsResponse {
+  success: boolean;
+  bounds?: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  };
+  dpr?: number;
+  error?: string;
+  code?: string;
+}
+
+function getElementBoundsAndScroll(elementId: string): BoundsResponse {
+  log.debug(`getElementBoundsAndScroll: elementId=${elementId}`);
+
+  const element = getElement(elementId);
+  if ("success" in element && !element.success) {
+    return element as BoundsResponse;
+  }
+
+  const el = element as Element;
+
+  try {
+    // Scroll element into view
+    el.scrollIntoView({
+      block: "center",
+      inline: "center",
+      behavior: "instant",
+    });
+
+    // Get bounds after scrolling
+    const rect = el.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+
+    log.debug(
+      `bounds: x=${rect.x}, y=${rect.y}, width=${rect.width}, height=${rect.height}, dpr=${dpr}`
+    );
+
+    return {
+      success: true,
+      bounds: {
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+      },
+      dpr,
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: `Failed to get element bounds: ${message}`,
+      code: "script error",
+    };
+  }
+}
+
+interface CropResponse {
+  success: boolean;
+  data?: string;
+  error?: string;
+}
+
+async function cropImage(
+  dataUrl: string,
+  bounds: { x: number; y: number; width: number; height: number },
+  format: "png" | "jpeg",
+  quality?: number
+): Promise<CropResponse> {
+  log.debug(`cropImage: bounds=${JSON.stringify(bounds)}, format=${format}`);
+
+  try {
+    // Create an image from the data URL
+    const img = new Image();
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error("Failed to load image"));
+      img.src = dataUrl;
+    });
+
+    // Account for device pixel ratio
+    const dpr = window.devicePixelRatio || 1;
+    const scaledBounds = {
+      x: Math.round(bounds.x * dpr),
+      y: Math.round(bounds.y * dpr),
+      width: Math.round(bounds.width * dpr),
+      height: Math.round(bounds.height * dpr),
+    };
+
+    // Ensure bounds are within image
+    const cropX = Math.max(0, Math.min(scaledBounds.x, img.width));
+    const cropY = Math.max(0, Math.min(scaledBounds.y, img.height));
+    const cropWidth = Math.min(scaledBounds.width, img.width - cropX);
+    const cropHeight = Math.min(scaledBounds.height, img.height - cropY);
+
+    if (cropWidth <= 0 || cropHeight <= 0) {
+      return {
+        success: false,
+        error: "Element is outside visible area",
+      };
+    }
+
+    // Create canvas and crop
+    const canvas = new OffscreenCanvas(cropWidth, cropHeight);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      return {
+        success: false,
+        error: "Failed to create canvas context",
+      };
+    }
+
+    ctx.drawImage(
+      img,
+      cropX,
+      cropY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      cropWidth,
+      cropHeight
+    );
+
+    // Convert to blob
+    const mimeType = format === "jpeg" ? "image/jpeg" : "image/png";
+    const blobOptions: { type: string; quality?: number } = { type: mimeType };
+    if (format === "jpeg") {
+      blobOptions.quality = (quality ?? 80) / 100;
+    }
+    const blob = await canvas.convertToBlob(blobOptions);
+
+    // Convert blob to base64
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64Data = result.split(",")[1];
+        if (base64Data) {
+          resolve(base64Data);
+        } else {
+          reject(new Error("Failed to convert to base64"));
+        }
+      };
+      reader.onerror = () => reject(new Error("Failed to read blob"));
+      reader.readAsDataURL(blob);
+    });
+
+    log.debug(`cropImage: success, ${base64.length} bytes`);
+
+    return { success: true, data: base64 };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      success: false,
+      error: `Failed to crop image: ${message}`,
+    };
+  }
+}
+
+// ============================================================================
 // Implementation - Cleanup
 // ============================================================================
 
@@ -977,13 +1308,15 @@ function getElementStore(): Map<string, Element> {
 // ============================================================================
 
 function handleElementFind(msg: ElementFindMessage): Promise<ElementResponse> {
-  return Promise.resolve(findElement(msg.selector, msg.parentId));
+  return Promise.resolve(findElement(msg.strategy, msg.value, msg.parentId));
 }
 
 function handleElementFindAll(
   msg: ElementFindAllMessage
 ): Promise<ElementResponse> {
-  return Promise.resolve(findAllElements(msg.selector, msg.parentId));
+  return Promise.resolve(
+    findAllElements(msg.strategy, msg.value, msg.parentId)
+  );
 }
 
 function handleElementAction(
@@ -1060,6 +1393,26 @@ function handleInputMouseUp(
   return Promise.resolve(mouseUp(msg.elementId, msg.x, msg.y, msg.button));
 }
 
+function handleElementGetBoundsAndScroll(
+  msg: ElementGetBoundsAndScrollMessage
+): Promise<BoundsResponse> {
+  return Promise.resolve(getElementBoundsAndScroll(msg.elementId));
+}
+
+function handleCropImage(msg: CropImageMessage): Promise<CropResponse> {
+  return cropImage(msg.dataUrl, msg.bounds, msg.format, msg.quality);
+}
+
+interface GetDevicePixelRatioMessage {
+  type: "GET_DEVICE_PIXEL_RATIO";
+}
+
+function handleGetDevicePixelRatio(
+  _msg: GetDevicePixelRatioMessage
+): Promise<{ dpr: number }> {
+  return Promise.resolve({ dpr: window.devicePixelRatio || 1 });
+}
+
 // ============================================================================
 // Implementation - Initialization
 // ============================================================================
@@ -1075,6 +1428,12 @@ function initElements(): void {
   registerHandler("INPUT_MOUSE_MOVE", handleInputMouseMove);
   registerHandler("INPUT_MOUSE_DOWN", handleInputMouseDown);
   registerHandler("INPUT_MOUSE_UP", handleInputMouseUp);
+  registerHandler(
+    "ELEMENT_GET_BOUNDS_AND_SCROLL",
+    handleElementGetBoundsAndScroll
+  );
+  registerHandler("CROP_IMAGE", handleCropImage);
+  registerHandler("GET_DEVICE_PIXEL_RATIO", handleGetDevicePixelRatio);
 
   registerStateProvider(() => ({ elementCount: elementStore.size }));
 

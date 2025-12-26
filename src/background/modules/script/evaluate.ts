@@ -44,12 +44,10 @@ async function handleEvaluate(
     throw new Error("Script is required");
   }
 
-  log.debug("Executing script", {
-    tabId: ctx.tabId,
-    frameId: ctx.frameId,
-    scriptLength: script.length,
-    argsCount: args.length,
-  });
+  log.debug(
+    `evaluate: tab=${ctx.tabId}, frame=${ctx.frameId}, scriptLength=${script.length}, args=${args.length}`
+  );
+  const start = Date.now();
 
   const results = await browser.scripting.executeScript({
     target: { tabId: ctx.tabId, frameIds: [ctx.frameId] },
@@ -71,7 +69,10 @@ async function handleEvaluate(
     throw new Error(`Script error: ${error.message || "Unknown error"}`);
   }
 
-  log.debug("Script executed successfully", { tabId: ctx.tabId });
+  const elapsed = Date.now() - start;
+  log.debug(
+    `evaluate: completed in ${elapsed}ms, result type=${typeof result.result}`
+  );
 
   return { value: result.result };
 }
@@ -86,12 +87,10 @@ async function handleEvaluateAsync(
     throw new Error("Script is required");
   }
 
-  log.debug("Executing async script", {
-    tabId: ctx.tabId,
-    frameId: ctx.frameId,
-    scriptLength: script.length,
-    argsCount: args.length,
-  });
+  log.debug(
+    `evaluateAsync: tab=${ctx.tabId}, frame=${ctx.frameId}, scriptLength=${script.length}, args=${args.length}`
+  );
+  const start = Date.now();
 
   const results = await browser.scripting.executeScript({
     target: { tabId: ctx.tabId, frameIds: [ctx.frameId] },
@@ -113,7 +112,10 @@ async function handleEvaluateAsync(
     throw new Error(`Script error: ${error.message || "Unknown error"}`);
   }
 
-  log.debug("Async script executed successfully", { tabId: ctx.tabId });
+  const elapsed = Date.now() - start;
+  log.debug(
+    `evaluateAsync: completed in ${elapsed}ms, result type=${typeof result.result}`
+  );
 
   return { value: result.result };
 }
